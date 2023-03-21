@@ -41,6 +41,7 @@ func (a *App) Initialize(e *conf.Env) {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// ! 初始化Router实例
 	a.Router = mux.NewRouter()
+	//a.Router.Use(middleware.Cors)
 	a.Middleware = &middleware.Middleware{}
 	a.Config = e
 	a.InitializeRoutes()
@@ -52,19 +53,20 @@ func (a *App) Initialize(e *conf.Env) {
 // ！Alice 处理panic，从panic中恢复数据
 
 func (a *App) InitializeRoutes() {
-	m := alice.New(a.Middleware.LoggingHandler, a.Middleware.RecoverHandler)
+	m := alice.New(a.Middleware.LoggingHandler, a.Middleware.RecoverHandler, a.Middleware.Cors)
 	// ! 创建短地址
 
-	a.Router.Handle("/api/shorten",
-		m.ThenFunc(a.createShortLink)).Methods("POST")
+	a.Router.Handle("/api/v1/long",
+		m.ThenFunc(a.createShortLink)).Methods("POST", "OPTIONS")
+
 	// ! 获得短地址的详细信息
 
-	a.Router.Handle("/api/info",
-		m.ThenFunc(a.getShortLinkInfo)).Methods("GET")
+	a.Router.Handle("/api/v1/info",
+		m.ThenFunc(a.getShortLinkInfo)).Methods("GET", "OPTIONS")
 	// ! 重定向接口，指定地址格式，限定位数
 
-	a.Router.Handle("/{shortLink:[a-zA-Z0-9]{1,11}}",
-		m.ThenFunc(a.redirect)).Methods("GET")
+	a.Router.Handle("/api/v1/short/{shortLink:[a-zA-Z0-9]{1,11}}",
+		m.ThenFunc(a.redirect)).Methods("GET", "OPTIONS")
 
 	// ! 创建短地址
 	//a.Router.HandleFunc("/api/shorten", a.createShortLink).Methods("Post")
@@ -75,17 +77,18 @@ func (a *App) InitializeRoutes() {
 }
 
 func (a *App) createShortLink(writer http.ResponseWriter, request *http.Request) {
-
 	var req shortenReq
+
 	if err := json.NewDecoder(request.Body).Decode(&req); err != nil {
-		respondWithError(writer, global.StatusError{http.StatusBadRequest,
-			fmt.Errorf("validate parameters faileed %v", request.Body),
+		respondWithError(writer, global.StatusError{Code: http.StatusBadRequest,
+			Err: fmt.Errorf("validate parameters faileed %v", request.Body),
 		})
 		return
 	}
 	if err := validator.Validate(req); err != nil {
-		respondWithError(writer, global.StatusError{http.StatusBadRequest,
-			fmt.Errorf("parse parameters faileed %v", req),
+		respondWithError(writer, global.StatusError{Code: http.StatusBadRequest,
+
+			Err: fmt.Errorf("parse parameters faileed %v", req),
 		})
 
 		return
@@ -99,11 +102,12 @@ func (a *App) createShortLink(writer http.ResponseWriter, request *http.Request)
 			ShortLink: s},
 		)
 	}
+
 }
 
 func (a *App) getShortLinkInfo(writer http.ResponseWriter, request *http.Request) {
 	vals := request.URL.Query()
-	s := vals.Get("shortLink")
+	s := vals.Get("short_link")
 	d, err := a.Config.S.ShortLinkInfo(s)
 	if err != nil {
 		respondWithError(writer, err)
@@ -136,7 +140,6 @@ func respondWithError(writer http.ResponseWriter, err error) {
 
 func respondWithJSON(writer http.ResponseWriter, code int, payload interface{}) {
 	resp, _ := json.Marshal(payload)
-
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(code)
 	writer.Write(resp)

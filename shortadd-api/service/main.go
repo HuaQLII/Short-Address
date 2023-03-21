@@ -1,6 +1,8 @@
 package main
 
-import "github/im-lauson/Short-Address/conf"
+import (
+	"github/im-lauson/Short-Address/conf"
+)
 
 func main() {
 	a := App{}

@@ -31,6 +31,7 @@ func GetEnv() *Env {
 	}
 	log.Printf("connect to redis (addr:%s passwd :%s db:%d)", addr, passwd, db)
 
-	r := middleware.NewRedisCli("127.0.0.1:6379", "", 1)
+	r := middleware.NewRedisCli("127.0.0.1:63791", "", 1)
+
 	return &Env{S: r}
 }
