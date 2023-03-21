@@ -38,3 +38,20 @@ func (m Middleware) RecoverHandler(next http.Handler) http.Handler {
 	}
 	return http.HandlerFunc(fn)
 }
+
+func (m Middleware) Cors(f http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")                                                            // 允许访问所有域，可以换成具体url，注意仅具体url才能带cookie信息
+		w.Header().Add("Access-Control-Allow-Headers", "Content-Type,AccessToken,X-CSRF-Token, Authorization, Token") //header的类型
+		w.Header().Add("Access-Control-Allow-Credentials", "true")                                                    //设置为true，允许ajax异步请求带cookie信息
+		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")                             //允许请求方法
+		w.Header().Add("content-type", "application/json;charset=UTF-8")
+		w.Header().Add("Access-Control-Max-Age", "259200")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		f.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(fn)
+}
